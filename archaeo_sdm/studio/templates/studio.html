@@ -10,7 +10,9 @@
   body{margin:0;font:14px/1.6 "Malgun Gothic","맑은 고딕",system-ui,sans-serif;background:var(--bg);color:var(--ink)}
   header{background:#17352b;color:#fff;padding:13px 22px}
   header h1{margin:0;font-size:18px} header p{margin:3px 0 0;font-size:12px;color:#b8d4c8}
-  .wrap{display:grid;grid-template-columns:300px 1fr;gap:16px;padding:16px;align-items:start}
+  .wrap{display:grid;grid-template-columns:300px minmax(0,1fr);gap:16px;padding:16px;align-items:start}
+  .wrap>div{min-width:0}
+  @media (max-width:820px){.wrap{grid-template-columns:1fr}}
   .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:14px}
   .card h2{margin:0 0 10px;font-size:14px;border-bottom:1px solid var(--line);padding-bottom:6px}
   label{display:block;font-size:12px;color:var(--mut);margin:8px 0 3px}
@@ -131,18 +133,19 @@
 
 <script>
 const $ = id => document.getElementById(id);
-const MODELS = {{ models|tojson }}, MINS = {{ min_sites|tojson }}, SLICES = {{ slices|tojson }};
+const MODEL_LIST = {{ model_list|tojson }}, SLICES = {{ slices|tojson }};
+const MODELS = Object.fromEntries(MODEL_LIST.map(m => [m[0], m[1]])), MINS = Object.fromEntries(MODEL_LIST.map(m => [m[0], m[2]]));
 const sel = id => [...$(id).selectedOptions].map(o => o.value);
 const esc = v => String(v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-for (const [k, v] of Object.entries(MODELS)) {
+for (const [k, v] of MODEL_LIST.map(m => [m[0], m[1]])) {
   $('modelChk').insertAdjacentHTML('beforeend',
     `<label><input type="checkbox" value="${k}" checked> ${v} <span style="color:#999">(≥${MINS[k]}곳)</span></label>`);
   for (const s of ['scModel', 'dsModel']) $(s).insertAdjacentHTML('beforeend', `<option value="${k}">${v}</option>`);
 }
 for (const s of ['scModel', 'dsModel']) $(s).insertAdjacentHTML('beforeend', '<option value="ensemble">★ 앙상블</option>');
 $('scModel').value = 'mahalanobis'; $('dsModel').value = 'bioclim';
-for (const [k, v] of Object.entries(SLICES)) $('trainSlice').insertAdjacentHTML('beforeend', `<option value="${k}">${v}</option>`);
+for (const [k, v] of {{ slice_list|tojson }}) $('trainSlice').insertAdjacentHTML('beforeend', `<option value="${k}">${v}</option>`);
 $('trainSlice').value = 'current';
 
 document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => {

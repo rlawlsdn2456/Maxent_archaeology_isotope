@@ -142,6 +142,7 @@ def run_compare(df, cfg, out_dir, log=print) -> dict:
     table = compare_models(Xp, Xb, xy_p, xy_b, st.names, keys, n_folds=int(cfg.get("folds", 4)))
     from ..validation import null_model_auc
     table["무작위기준선"] = round(null_model_auc(len(Xp), min(len(Xb), 2000)), 3)
+    table = table.sort_values("공간CV_AUC", ascending=False, na_position="last").reset_index(drop=True)
     table.to_csv(os.path.join(out_dir, "model_comparison.csv"), index=False, encoding="utf-8-sig")
     log("모델 비교표 완료")
 
@@ -206,7 +207,8 @@ def run_scenario(df, cfg, out_dir, log=print) -> dict:
     table["외삽셀비율(%)_이후"] = [extrap[n] for n in names[1:]]
     table.to_csv(os.path.join(out_dir, "range_change.csv"), index=False, encoding="utf-8-sig")
     return {"table": table, "images": [os.path.basename(img1), os.path.basename(img2)],
-            "note": f"임계값 P10={thr:.3f} | 시점별 외삽 셀 비율: {extrap}",
+            "note": f"적합 판정 임계값(P10) {thr:.3f} · 학습 범위 밖 기후(외삽) 셀 비율 — "
+                    + ", ".join(f"{k} {v}%" for k, v in extrap.items()),
             "threshold": thr, "surfaces": surf, "stack": st, "xy_p": xy_p}
 
 
@@ -291,6 +293,13 @@ def run_niche(df, cfg, out_dir, log=print) -> dict:
                               key=lambda s: s.map(order) if s.name == "period" else s)
     tbl.to_csv(os.path.join(out_dir, "niche_table.csv"), index=False, encoding="utf-8-sig")
     M, groups = overlap_matrix(sub, group_cols, min_n=int(cfg.get("min_n", 5)))
+    # 범례·행렬을 '지역 → 시기(오래된 순)' 순서로 정렬
+    def _k(name):
+        parts = name.split(" · ")
+        return tuple(order.get(x, -1) if x in order else x for x in parts)
+    keys = sorted(groups, key=lambda n: tuple(str(v).zfill(3) if isinstance(v, int) else v for v in _k(n)))
+    groups = {k: groups[k] for k in keys}
+    M = M.loc[keys, keys]
     M.round(1).to_csv(os.path.join(out_dir, "niche_overlap.csv"), encoding="utf-8-sig")
     log(f"집단 {len(tbl)}개 중 {len(groups)}개에서 타원 계산")
     imgs = []
@@ -318,6 +327,7 @@ def to_json(res: dict) -> dict:
     out = {k: v for k, v in res.items() if k in ("images", "note", "n_sites", "threshold")}
     t = res.get("table")
     if isinstance(t, pd.DataFrame):
+        t = t.drop(columns=["model"], errors="ignore")      # 내부용 키는 화면에 보이지 않게
         t = t.astype(object).where(t.notna(), None)
         out["table"] = {"columns": [str(c) for c in t.columns], "rows": t.values.tolist()}
     return json.loads(json.dumps(out, default=float))

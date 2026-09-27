@@ -38,9 +38,9 @@ def _df(path=None):
 @app.route("/")
 def index():
     return render_template("studio.html",
-                           models={k: v[0] for k, v in MODEL_INFO.items()},
-                           min_sites={k: v[1] for k, v in MODEL_INFO.items()},
-                           slices=engine.SLICES)
+                           model_list=[[k, v[0], v[1]] for k, v in MODEL_INFO.items()],
+                           slices=engine.SLICES,
+                           slice_list=[[k, engine.SLICES[k]] for k in engine.SLICE_ORDER])
 
 
 @app.route("/api/summary")

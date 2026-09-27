@@ -199,7 +199,27 @@ spatial_block_cv(Xp, (px, py), Xb, (bx, by), n_folds=4, method="kmeans")
 낮게 나오는 것이 정상이며, `무작위기준선` 보다 확실히 높지 않으면 그 모델은
 환경을 배운 것이 아니라 조사 분포를 외운 것입니다.
 
-## 7. 앞으로 붙일 것
+## 7. SDM Studio — MaxEnt 너머의 모델 실험실 (v0.4)
+
+```bash
+.venv/Scripts/python.exe -m archaeo_sdm.cli studio      # http://127.0.0.1:8766
+```
+
+기존 브라우저 UI(8765)가 MaxEnt 전체 파이프라인이라면, Studio는 여러 방법을 나란히 시험하는 곳입니다.
+표준화된 자료(`outputs/*/dataset_*.csv`)가 있어야 하므로 `examples/run_northeast_asia.py` 를 먼저 한 번 실행하십시오.
+
+| 탭 | 하는 일 | 모듈 |
+|---|---|---|
+| ① 모델 비교 | BIOCLIM·Mahalanobis·GLM·GAM·RF·BRT·MaxEnt를 공간 블록 교차검증으로 비교, 기준 통과 모델만 가중 앙상블 | `models.py` |
+| ② 기후 시나리오 | LGM → 중기 홀로세 → 현생 투영, 면적·중심 이동, 외삽(MESS) 지도 | `scenarios.py` |
+| ③ 분산 시뮬레이션 | 이동 거리 제한 하의 범위 확산(셀룰러 오토마타), GIF | `scenarios.py` |
+| ④ 동위원소 니치 | SEAc(부트스트랩 CI)·Layman 지표·표준타원 겹침 | `isoniche.py` |
+| 도구 안내 | 모델·도구 조사 문서 | `docs/SDM_tools_survey.md` |
+
+유적 수가 각 알고리즘의 최소 기준(BIOCLIM 3 · Mahalanobis 4 · GLM/MaxEnt 5 · GAM 8 · RF 10 · BRT 15)보다
+적으면 그 알고리즘은 자동으로 빠집니다. 계산부(`studio/engine.py`)는 화면 없이 스크립트에서도 쓸 수 있습니다.
+
+## 8. 앞으로 붙일 것
 
 1. 시기별 지역 고기후 복원 레이어(화분·호소퇴적) 결합
 2. 발굴 편향 보정(target-group background)
