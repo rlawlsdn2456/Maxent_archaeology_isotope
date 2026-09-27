@@ -1,0 +1,17 @@
+Package: archaeosdm
+Type: Package
+Title: Archaeological Isotope Isoscapes and Species Distribution Models
+Version: 0.3.0
+Authors@R: person("archaeo-sdm", role = c("aut", "cre"), email = "noreply@example.org")
+Description: R interface to the Python package 'archaeo_sdm'. Builds temporal
+    isoscapes (collagen d13C/d15N, apatite d13C/d18O) from archaeological
+    isotope databases, fits MaxEnt habitat suitability models with palaeoclimate
+    layers, compares periods within the same sub-region, and validates models
+    with spatial block cross-validation. Rasters are returned as 'terra' objects
+    and tables as data frames.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Depends: R (>= 4.1)
+Imports: reticulate (>= 1.28), utils
+Suggests: terra, ggplot2
+RoxygenNote: 7.3.1

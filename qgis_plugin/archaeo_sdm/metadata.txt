@@ -1,0 +1,17 @@
+[general]
+name=Archaeo-SDM (고고학 동위원소·종분포)
+qgisMinimumVersion=3.22
+description=유적 동위원소 자료로 시기별 아이소스케이프와 MaxEnt 서식지 적합도를 만들어 QGIS 레이어로 불러옵니다.
+description[en]=Builds temporal isotope isoscapes and MaxEnt habitat suitability rasters from archaeological isotope datasets and loads them as QGIS layers.
+version=0.3.0
+author=archaeo-sdm
+email=noreply@example.org
+about=파이썬 패키지 archaeo_sdm 을 QGIS에서 실행합니다. 계산은 별도의 가상환경 파이썬에서 수행하므로 QGIS 내장 파이썬에 추가 패키지를 설치할 필요가 없습니다. 결과 GeoTIFF(아이소스케이프, 변화면, 적합도)는 자동으로 레이어 목록에 추가되고 색상표가 적용됩니다.
+tracker=https://example.org/issues
+repository=https://example.org/archaeo-sdm
+homepage=https://example.org/archaeo-sdm
+category=Plugins
+icon=icon.png
+experimental=True
+deprecated=False
+tags=archaeology,isotopes,maxent,species distribution,palaeoclimate,isoscape

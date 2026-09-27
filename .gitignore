@@ -1,0 +1,26 @@
+# 가상환경 — 기계마다 다시 만들면 되므로 올리지 않습니다 (requirements.txt 참조)
+.venv/
+venv/
+
+# 파이썬 캐시
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ipynb_checkpoints/
+
+# 내려받은 압축파일 (압축을 푼 tif 는 올라갑니다)
+data/paleoclim/*.zip
+
+# 실행 로그
+outputs/*.log
+
+# 편집기·OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 자료와 결과물은 저장소에 올리지 않습니다 (로컬에만 보관)
+data/
+outputs/

@@ -1,0 +1,14 @@
+# archaeo-sdm 실행에 필요한 패키지
+# 설치:  python -m venv .venv && .venv/Scripts/python.exe -m pip install -r requirements.txt
+numpy
+pandas
+scipy
+scikit-learn
+matplotlib
+rasterio
+geopandas
+shapely
+pyproj
+openpyxl
+flask
+pillow

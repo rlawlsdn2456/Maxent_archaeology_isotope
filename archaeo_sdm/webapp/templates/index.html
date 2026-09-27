@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>archaeo-sdm — 고고학 동위원소·종분포 분석</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root{--bg:#f7f7f9;--card:#fff;--line:#e3e3e8;--ink:#1e2228;--mut:#6b7280;--acc:#2f6fd0}
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.6 "Malgun Gothic","맑은 고딕",system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+  header{background:#22304a;color:#fff;padding:14px 22px}
+  header h1{margin:0;font-size:18px}
+  header p{margin:4px 0 0;font-size:12px;color:#b9c4d6}
+  .wrap{display:grid;grid-template-columns:380px 1fr;gap:16px;padding:16px;align-items:start}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:14px}
+  .card h2{margin:0 0 10px;font-size:14px;border-bottom:1px solid var(--line);padding-bottom:6px}
+  label{display:block;font-size:12px;color:var(--mut);margin:8px 0 3px}
+  input[type=text],input[type=number],select,textarea{width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font:12px/1.4 inherit}
+  textarea{height:90px;font-family:ui-monospace,Consolas,monospace}
+  button{background:var(--acc);color:#fff;border:0;border-radius:7px;padding:9px 14px;font-size:13px;cursor:pointer}
+  button.sec{background:#eceef3;color:#333}
+  button:disabled{opacity:.5;cursor:default}
+  .row{display:flex;gap:8px;flex-wrap:wrap}
+  .row>*{flex:1}
+  #log{background:#11151c;color:#c8e1ff;border-radius:8px;padding:10px;height:150px;overflow:auto;font:12px/1.5 ui-monospace,Consolas,monospace;white-space:pre-wrap}
+  .gal{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+  .gal figure{margin:0;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff;cursor:pointer}
+  .gal img{width:100%;display:block}
+  .gal figcaption{font-size:11px;padding:5px 7px;color:var(--mut);word-break:break-all}
+  #map{height:440px;border-radius:8px}
+  table{border-collapse:collapse;width:100%;font-size:12px}
+  th,td{border:1px solid var(--line);padding:4px 6px;text-align:right;white-space:nowrap}
+  th{background:#f1f3f7;position:sticky;top:0}
+  td:first-child,th:first-child{text-align:left}
+  .scroll{max-height:340px;overflow:auto}
+  .tag{display:inline-block;background:#eef3fb;color:#2f6fd0;border-radius:5px;padding:1px 7px;font-size:11px;margin-right:4px}
+  .warn{background:#fff6e5;border:1px solid #f0d9a8;border-radius:8px;padding:9px;font-size:12px;color:#7a5a12}
+  dialog{border:0;border-radius:10px;padding:0;max-width:94vw}
+  dialog img{max-width:92vw;max-height:88vh;display:block}
+</style>
+</head>
+<body>
+<header>
+  <h1>archaeo-sdm — 고고학 동위원소·종분포 분석</h1>
+  <p>유적 좌표 + 탄소·질소 동위원소 + 고기후를 넣으면 아이소스케이프·MaxEnt·시기비교를 한 번에 만듭니다.</p>
+</header>
+
+<div class="wrap">
+  <div>
+    <div class="card">
+      <h2>1. 자료</h2>
+      <label>중국 동위원소 DB (.xlsx)</label><input type="text" id="china_db">
+      <label>IsoMemo/CIMA DB (.xlsx)</label><input type="text" id="isomemo_db">
+      <label>직접 정리한 표 (.xlsx)</label><input type="text" id="ecology_xlsx">
+      <label>좌표 있는 점 자료 (.shp)</label><input type="text" id="point_shapefile">
+      <label>점 자료에 붙일 동위원소 (.csv)</label><input type="text" id="point_csv">
+      <label>직접 입력한 유적 좌표 사전 (.csv)</label><input type="text" id="gazetteer_manual">
+    </div>
+
+    <div class="card">
+      <h2>2. 고환경</h2>
+      <label>현생 WorldClim 폴더</label><input type="text" id="worldclim_dir">
+      <label>고기후 폴더 (mid / lgm 하위폴더)</label><input type="text" id="paleoclim_dir">
+      <label>생물기후 변수 번호 (쉼표 구분)</label><input type="text" id="bio" value="1,4,12,15">
+      <label>연구범위 bbox (서,남,동,북)</label><input type="text" id="bbox" value="105,33,141,56">
+    </div>
+
+    <div class="card">
+      <h2>3. 분석 설정</h2>
+      <label>동위원소 프록시</label>
+      <select id="proxies" multiple size="4">
+        <option value="d13C_coll" selected>콜라겐 δ13C</option>
+        <option value="d15N_coll" selected>콜라겐 δ15N</option>
+        <option value="d13C_ap">아파타이트 δ13C</option>
+        <option value="d18O_ap">아파타이트 δ18O</option>
+      </select>
+      <label>아이소스케이프 분류군 (쉼표)</label><input type="text" id="iso_taxa" value="사람,돼지,소,양·염소">
+      <label>MaxEnt 분류군 (쉼표)</label><input type="text" id="sdm_taxa" value="돼지,사람">
+      <div class="row">
+        <div><label>최소 유적수(아이소)</label><input type="number" id="min_iso" value="3"></div>
+        <div><label>최소 유적수(SDM)</label><input type="number" id="min_sdm" value="4"></div>
+      </div>
+      <div class="row">
+        <div><label>지지거리 (km)</label><input type="number" id="dist" value="350"></div>
+        <div><label>정규화 β</label><input type="number" id="beta" value="3" step="0.5"></div>
+      </div>
+      <label><input type="checkbox" id="cv" checked style="width:auto"> 공간 블록 교차검증 수행</label>
+      <label>출력 폴더</label><input type="text" id="out" value="outputs/web_run">
+      <div class="row" style="margin-top:12px">
+        <button id="btnRun">분석 실행</button>
+        <button id="btnPreset" class="sec" type="button">이 컴퓨터의 자료 경로 채우기</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>진행 상황</h2>
+      <div id="log">대기 중…</div>
+    </div>
+  </div>
+
+  <div>
+    <div class="card">
+      <h2>지도 (GeoTIFF 겹쳐 보기)</h2>
+      <div class="row" style="margin-bottom:8px">
+        <select id="rasterSel"><option>분석을 먼저 실행하세요</option></select>
+        <button id="btnOverlay" class="sec" style="flex:0 0 auto">지도에 표시</button>
+      </div>
+      <div id="map"></div>
+      <p style="font-size:11px;color:var(--mut);margin:6px 0 0" id="rangeInfo"></p>
+    </div>
+
+    <div class="card">
+      <h2>결과 그림</h2>
+      <div class="gal" id="gallery"><p style="color:var(--mut);font-size:12px">아직 없습니다.</p></div>
+    </div>
+
+    <div class="card">
+      <h2>결과 표</h2>
+      <select id="tableSel" style="margin-bottom:8px"><option>—</option></select>
+      <div class="scroll"><table id="table"></table></div>
+    </div>
+  </div>
+</div>
+
+<dialog id="big"><img id="bigimg" alt=""></dialog>
+
+<script>
+const $ = id => document.getElementById(id);
+let JOB = null, timer = null, layer = null;
+
+const map = L.map('map').setView([44, 122], 4);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+  {attribution:'© OpenStreetMap', maxZoom:12}).addTo(map);
+
+$('btnPreset').onclick = async () => {
+  // 서버가 이 컴퓨터에서 찾은 경로를 받아 채웁니다(드라이브 문자를 코드에 적지 않습니다).
+  const d = await (await fetch('/api/defaults')).json();
+  for (const [k, v] of Object.entries(d)) if ($(k) && v) $(k).value = v;
+};
+
+function config(){
+  const sel = [...$('proxies').selectedOptions].map(o => o.value);
+  const split = s => s.split(',').map(v => v.trim()).filter(Boolean);
+  return {
+    "출력폴더": $('out').value,
+    "자료": {china_db:$('china_db').value, isomemo_db:$('isomemo_db').value,
+             ecology_xlsx:$('ecology_xlsx').value, point_shapefile:$('point_shapefile').value,
+             point_csv:$('point_csv').value, gazetteer_manual:$('gazetteer_manual').value},
+    "고환경": {worldclim_dir:$('worldclim_dir').value, paleoclim_dir:$('paleoclim_dir').value,
+               bio: split($('bio').value).map(Number)},
+    "범위": {bbox: split($('bbox').value).map(Number)},
+    "분석": {"프록시": sel,
+             "아이소스케이프_분류군": split($('iso_taxa').value),
+             "SDM_분류군": split($('sdm_taxa').value),
+             "최소유적수_아이소스케이프": +$('min_iso').value,
+             "최소유적수_SDM": +$('min_sdm').value,
+             "지지거리_km": +$('dist').value,
+             "beta_multiplier": +$('beta').value,
+             "공간블록교차검증": $('cv').checked}
+  };
+}
+
+$('btnRun').onclick = async () => {
+  $('btnRun').disabled = true;
+  $('log').textContent = '시작하는 중…';
+  const r = await fetch('/api/run', {method:'POST', headers:{'Content-Type':'application/json'},
+                                     body: JSON.stringify(config())});
+  JOB = (await r.json()).job;
+  timer = setInterval(poll, 1200);
+};
+
+async function poll(){
+  const s = await (await fetch('/api/status/' + JOB)).json();
+  $('log').textContent = s.log.join('\n');
+  $('log').scrollTop = 1e6;
+  if (s.status === 'done' || s.status === 'error'){
+    clearInterval(timer); $('btnRun').disabled = false;
+    if (s.status === 'error') $('log').textContent += '\n\n[오류] ' + s.error;
+    else loadResults();
+  }
+}
+
+async function loadResults(){
+  const f = await (await fetch('/api/files/' + JOB)).json();
+  const gal = $('gallery'); gal.innerHTML = '';
+  f.images.forEach(n => {
+    const fig = document.createElement('figure');
+    fig.innerHTML = `<img src="/file/${JOB}/${encodeURIComponent(n)}" loading="lazy">
+                     <figcaption>${n}</figcaption>`;
+    fig.onclick = () => { $('bigimg').src = `/file/${JOB}/${encodeURIComponent(n)}`; $('big').showModal(); };
+    gal.appendChild(fig);
+  });
+  $('rasterSel').innerHTML = f.rasters.map(n => `<option>${n}</option>`).join('') ||
+                             '<option>래스터 없음</option>';
+  $('tableSel').innerHTML = f.tables.map(n => `<option>${n}</option>`).join('') ||
+                            '<option>표 없음</option>';
+  if (f.tables.length) showTable(f.tables[0]);
+}
+
+$('big').onclick = () => $('big').close();
+
+$('btnOverlay').onclick = async () => {
+  const n = $('rasterSel').value;
+  const r = await fetch(`/api/overlay/${JOB}/${encodeURIComponent(n)}`);
+  if (!r.ok){ $('rangeInfo').textContent = '표시할 값이 없는 래스터입니다.'; return; }
+  const d = await r.json();
+  if (layer) map.removeLayer(layer);
+  layer = L.imageOverlay(d.png, d.bounds, {opacity:0.75}).addTo(map);
+  map.fitBounds(d.bounds);
+  $('rangeInfo').textContent = `${n} — 색 범위 ${d.min.toFixed(2)} ~ ${d.max.toFixed(2)} (2~98 백분위)`;
+};
+
+$('tableSel').onchange = e => showTable(e.target.value);
+async function showTable(name){
+  const d = await (await fetch(`/api/table/${JOB}/${encodeURIComponent(name)}`)).json();
+  $('table').innerHTML = '<thead><tr>' + d.columns.map(c => `<th>${c}</th>`).join('') +
+    '</tr></thead><tbody>' + d.rows.map(r => '<tr>' +
+      r.map(v => `<td>${v === null ? '' : v}</td>`).join('') + '</tr>').join('') + '</tbody>';
+}
+</script>
+</body>
+</html>
