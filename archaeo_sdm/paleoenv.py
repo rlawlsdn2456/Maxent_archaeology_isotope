@@ -122,8 +122,11 @@ WORLDCLIM_PALEO_MODEL = "mr"
 
 # WorldClim 1.4는 기온 계열을 10배 정수로 저장합니다(bio1=연평균기온 x10).
 # 현생 WorldClim 2.1(섭씨 그대로)과 같이 쓰려면 10으로 나눠야 합니다.
-WC14_TEMP_BIOS = {1, 2, 5, 6, 7, 8, 9, 10, 11}
-WC14_SCALE100_BIOS = {4}     # bio4(기온계절성)는 표준편차 x100
+# bio4(기온계절성)는 두 판 모두 '표준편차 x100' 이지만, 1.4 는 기온 자체가 x10 이라
+# 결과적으로 2.1 보다 10배 큽니다. 따라서 bio4 도 10으로 나눕니다.
+# (예전에는 100으로 나눠 현생보다 10배 작아지는 버그가 있었음 - 2026-09 수정)
+WC14_TEMP_BIOS = {1, 2, 4, 5, 6, 7, 8, 9, 10, 11}
+WC14_SCALE100_BIOS = set()
 
 
 def download_worldclim_paleo(slice_key: str, out_dir: str, model: str = WORLDCLIM_PALEO_MODEL,
