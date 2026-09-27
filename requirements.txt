@@ -12,3 +12,4 @@ pyproj
 openpyxl
 flask
 pillow
+markdown

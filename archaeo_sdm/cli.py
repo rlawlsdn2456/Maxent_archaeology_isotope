@@ -242,7 +242,14 @@ def main(argv=None):
     w = sub.add_parser("web", help="브라우저 UI 실행")
     w.add_argument("--port", type=int, default=8765)
 
+    st = sub.add_parser("studio", help="SDM Studio (다중 모델·시나리오·니치) 실행")
+    st.add_argument("--port", type=int, default=8766)
+
     a = ap.parse_args(argv)
+    if a.cmd == "studio":
+        from .studio.app import serve as serve_studio
+        serve_studio(port=a.port)
+        return 0
     if a.cmd == "template":
         json.dump(TEMPLATE, sys.stdout, ensure_ascii=False, indent=2)
         return 0

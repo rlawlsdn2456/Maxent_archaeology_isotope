@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SDM Studio — 다중 모델·기후 시나리오·동위원소 니치</title>
+<style>
+  :root{--bg:#f5f6f8;--card:#fff;--line:#e2e4ea;--ink:#1d2129;--mut:#6b7280;--acc:#1f7a5c;--acc2:#e8f4ef;--warn:#fff6e5}
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.6 "Malgun Gothic","맑은 고딕",system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+  header{background:#17352b;color:#fff;padding:13px 22px}
+  header h1{margin:0;font-size:18px} header p{margin:3px 0 0;font-size:12px;color:#b8d4c8}
+  .wrap{display:grid;grid-template-columns:300px 1fr;gap:16px;padding:16px;align-items:start}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:14px}
+  .card h2{margin:0 0 10px;font-size:14px;border-bottom:1px solid var(--line);padding-bottom:6px}
+  label{display:block;font-size:12px;color:var(--mut);margin:8px 0 3px}
+  select,input[type=number],input[type=text]{width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font:12px inherit}
+  select[multiple]{height:118px}
+  .chk{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px}
+  .chk label{display:flex;align-items:center;gap:4px;margin:0;color:var(--ink)}
+  button{background:var(--acc);color:#fff;border:0;border-radius:7px;padding:9px 14px;font-size:13px;cursor:pointer}
+  button:disabled{opacity:.5;cursor:default}
+  .tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px}
+  .tabs button{background:#e6e9ee;color:#333;border-radius:7px 7px 0 0}
+  .tabs button.on{background:var(--acc);color:#fff}
+  .pane{display:none} .pane.on{display:block}
+  .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+  .log{background:#10181a;color:#bfe6d6;border-radius:8px;padding:9px;min-height:44px;max-height:120px;overflow:auto;font:12px/1.5 ui-monospace,Consolas,monospace;white-space:pre-wrap;margin-top:10px}
+  .note{background:var(--acc2);border-left:4px solid var(--acc);padding:8px 10px;border-radius:6px;font-size:12.5px;margin:10px 0}
+  .warn{background:var(--warn);border-left:4px solid #d9a441;padding:8px 10px;border-radius:6px;font-size:12.5px;margin:10px 0}
+  .imgs img{max-width:100%;border:1px solid var(--line);border-radius:8px;margin:6px 0;display:block;cursor:zoom-in}
+  table{border-collapse:collapse;width:100%;font-size:12px}
+  th,td{border:1px solid var(--line);padding:4px 6px;text-align:right;white-space:nowrap}
+  th{background:#f0f2f5;position:sticky;top:0} td:first-child,th:first-child{text-align:left}
+  .scroll{max-height:330px;overflow:auto;margin-top:8px}
+  .good{background:#e6f5ec} .bad{background:#fbeaea}
+  .md{font-size:13.5px;line-height:1.7} .md table{font-size:12px} .md td,.md th{text-align:left;white-space:normal}
+  .md h1{font-size:19px} .md h2{font-size:16px;border-bottom:1px solid var(--line);padding-bottom:4px;margin-top:22px} .md h3{font-size:14px}
+  .md code{background:#f0f2f5;padding:1px 4px;border-radius:4px}
+  dialog{border:0;border-radius:10px;padding:0} dialog img{max-width:94vw;max-height:90vh;display:block}
+</style>
+</head>
+<body>
+<header>
+  <h1>SDM Studio — MaxEnt 너머의 종분포·동위원소 니치 실험실</h1>
+  <p>여러 알고리즘을 공간 교차검증으로 나란히 비교하고, 고기후 시나리오·분산 시뮬레이션·동위원소 니치를 따로 시험합니다.</p>
+</header>
+
+<div class="wrap">
+  <div>
+    <div class="card">
+      <h2>분석 대상</h2>
+      <label>자료</label><select id="dataset"></select>
+      <label>분류군</label><select id="taxon"></select>
+      <label>시기 (여러 개 선택 = 합쳐서 분석)</label><select id="periods" multiple></select>
+      <label>소지역 (비우면 전체)</label><select id="zones" multiple></select>
+      <p style="font-size:11px;color:var(--mut);margin:8px 0 0">Ctrl 을 누른 채 클릭하면 여러 개를 고를 수 있습니다.</p>
+    </div>
+    <div class="card" id="counts"><h2>유적 수 (분류군 × 시기)</h2><div class="scroll" id="countTbl">불러오는 중…</div></div>
+  </div>
+
+  <div>
+    <div class="tabs" id="tabs">
+      <button data-p="compare" class="on">① 모델 비교</button>
+      <button data-p="scenario">② 기후 시나리오</button>
+      <button data-p="dispersal">③ 분산 시뮬레이션</button>
+      <button data-p="niche">④ 동위원소 니치</button>
+      <button data-p="guide">도구 안내</button>
+    </div>
+
+    <div class="card pane on" id="p-compare">
+      <h2>알고리즘 비교 — 공간 블록 교차검증</h2>
+      <div class="chk" id="modelChk"></div>
+      <div class="row">
+        <div><label>공간 블록 수</label><input type="number" id="folds" value="4" min="2" max="8"></div>
+        <div><label>앙상블 기준 (공간CV AUC ≥)</label><input type="number" id="minAuc" value="0.6" step="0.05"></div>
+      </div>
+      <div class="warn">유적 수가 각 모델의 최소 기준보다 적으면 그 모델은 자동으로 건너뜁니다.
+        <b>공간CV AUC가 무작위 기준선보다 확실히 높아야</b> 환경을 배운 모델입니다.</div>
+      <button onclick="run('compare')">비교 실행</button>
+      <div class="log" id="log-compare"></div><div id="res-compare"></div>
+    </div>
+
+    <div class="card pane" id="p-scenario">
+      <h2>기후 시나리오 투영 — LGM → 중기 홀로세 → 현생</h2>
+      <div class="row">
+        <div><label>모델</label><select id="scModel"></select></div>
+        <div><label>학습 기준 시점</label><select id="trainSlice"></select></div>
+      </div>
+      <div class="note">한 시점의 기후로 배운 관계를 다른 시점 기후에 적용합니다. 함께 나오는 <b>MESS 지도</b>에서
+        빨간 곳은 학습 때 없던 기후라 예측을 믿을 수 없는 곳입니다.</div>
+      <button onclick="run('scenario')">투영 실행</button>
+      <div class="log" id="log-scenario"></div><div id="res-scenario"></div>
+    </div>
+
+    <div class="card pane" id="p-dispersal">
+      <h2>분산 시뮬레이션 — '살 수 있는 곳'과 '실제로 도달한 곳'</h2>
+      <div class="row">
+        <div><label>모델</label><select id="dsModel"></select></div>
+        <div><label>시작 시점</label><select id="startSlice"><option value="lgm">LGM</option><option value="mid">중기 홀로세</option></select></div>
+        <div><label>시작 범위</label><select id="startFrom"><option value="refugia">시작 시점의 적합지 전체(피난처)</option><option value="sites">출토지 셀만</option></select></div>
+        <div><label>구간당 단계 수</label><input type="number" id="steps" value="10" min="2" max="40"></div>
+        <div><label>한 단계 이동 거리 (격자 칸)</label><input type="number" id="dcells" value="1" min="1" max="6"></div>
+        <div><label>정착 확률</label><input type="number" id="pcol" value="0.6" step="0.1" min="0" max="1"></div>
+      </div>
+      <div class="note">MigClim·KISSMig 계열을 단순화한 셀룰러 오토마타입니다. 격자 한 칸은 약 15–18 km입니다.
+        이동 거리를 줄이면 기후가 좋아져도 범위가 늦게 채워지는 '지연'을 볼 수 있습니다.</div>
+      <button onclick="run('dispersal')">시뮬레이션 실행</button>
+      <div class="log" id="log-dispersal"></div><div id="res-dispersal"></div>
+    </div>
+
+    <div class="card pane" id="p-niche">
+      <h2>동위원소 니치 — 표준타원(SEAc)과 겹침</h2>
+      <div class="row">
+        <div><label>집단 구분</label><select id="groupBy">
+          <option value="zone,period">소지역 × 시기</option><option value="period">시기</option>
+          <option value="zone">소지역</option><option value="taxon_group,period">분류군 × 시기</option>
+          <option value="taxon_group">분류군</option></select></div>
+        <div><label>최소 개체수</label><input type="number" id="minN" value="5" min="3"></div>
+      </div>
+      <div class="note">개체 단위로 계산하므로 유적이 적어도 개체가 10점 이상이면 쓸 수 있습니다.
+        SEAc가 커지면 먹이 폭이 넓어진 것(예: C3·C4 혼합 사육)입니다.</div>
+      <button onclick="run('niche')">니치 계산</button>
+      <div class="log" id="log-niche"></div><div id="res-niche"></div>
+    </div>
+
+    <div class="card pane md" id="p-guide">불러오는 중…</div>
+  </div>
+</div>
+<dialog id="big" onclick="this.close()"><img id="bigimg" alt=""></dialog>
+
+<script>
+const $ = id => document.getElementById(id);
+const MODELS = {{ models|tojson }}, MINS = {{ min_sites|tojson }}, SLICES = {{ slices|tojson }};
+const sel = id => [...$(id).selectedOptions].map(o => o.value);
+const esc = v => String(v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+for (const [k, v] of Object.entries(MODELS)) {
+  $('modelChk').insertAdjacentHTML('beforeend',
+    `<label><input type="checkbox" value="${k}" checked> ${v} <span style="color:#999">(≥${MINS[k]}곳)</span></label>`);
+  for (const s of ['scModel', 'dsModel']) $(s).insertAdjacentHTML('beforeend', `<option value="${k}">${v}</option>`);
+}
+for (const s of ['scModel', 'dsModel']) $(s).insertAdjacentHTML('beforeend', '<option value="ensemble">★ 앙상블</option>');
+$('scModel').value = 'mahalanobis'; $('dsModel').value = 'bioclim';
+for (const [k, v] of Object.entries(SLICES)) $('trainSlice').insertAdjacentHTML('beforeend', `<option value="${k}">${v}</option>`);
+$('trainSlice').value = 'current';
+
+document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('#tabs button').forEach(x => x.classList.toggle('on', x === b));
+  document.querySelectorAll('.pane').forEach(p => p.classList.toggle('on', p.id === 'p-' + b.dataset.p));
+  if (b.dataset.p === 'guide') loadGuide();
+});
+
+function tableHTML(t, hl) {
+  if (!t) return '';
+  const idxAuc = t.columns.indexOf('공간CV_AUC'), idxBase = t.columns.indexOf('무작위기준선');
+  return '<div class="scroll"><table><thead><tr>' + t.columns.map(c => `<th>${esc(c)}</th>`).join('') +
+    '</tr></thead><tbody>' + t.rows.map(r => {
+      let cls = '';
+      if (hl && idxAuc >= 0 && r[idxAuc] !== null) cls = r[idxAuc] >= (r[idxBase] ?? 0.5) + 0.05 ? 'good' : 'bad';
+      return `<tr class="${cls}">` + r.map(v => `<td>${v === null ? '' : (typeof v === 'number' ? +v.toFixed(3) : esc(v))}</td>`).join('') + '</tr>';
+    }).join('') + '</tbody></table></div>';
+}
+
+async function loadSummary(path) {
+  const r = await fetch('/api/summary' + (path ? '?path=' + encodeURIComponent(path) : ''));
+  const s = await r.json();
+  if (s.error) { $('countTbl').textContent = s.error; return; }
+  $('dataset').innerHTML = s.datasets.map(p => `<option value="${p}" ${p === s.path ? 'selected' : ''}>${p.split(/[\\/]/).slice(-2).join('/')}</option>`).join('');
+  $('taxon').innerHTML = ['전체동물', ...s.taxa].map(t => `<option ${t === '사람' ? 'selected' : ''}>${esc(t)}</option>`).join('');
+  $('periods').innerHTML = s.periods.map(p => `<option ${p === 'EIA' ? 'selected' : ''}>${p}</option>`).join('');
+  $('zones').innerHTML = s.zones.map(z => `<option>${esc(z)}</option>`).join('');
+  $('countTbl').innerHTML = `<p style="font-size:12px;margin:0 0 6px">시료 ${s.n.toLocaleString()} · 유적 ${s.sites}</p>` + tableHTML(s.taxon_period);
+}
+$('dataset').onchange = e => loadSummary(e.target.value);
+
+function cfg(kind) {
+  const c = {dataset: $('dataset').value, taxon: $('taxon').value, periods: sel('periods'), zones: sel('zones')};
+  if (kind === 'compare') Object.assign(c, {models: [...document.querySelectorAll('#modelChk input:checked')].map(i => i.value),
+                                            folds: +$('folds').value, min_auc: +$('minAuc').value});
+  if (kind === 'scenario') Object.assign(c, {model: $('scModel').value, train_slice: $('trainSlice').value});
+  if (kind === 'dispersal') Object.assign(c, {model: $('dsModel').value, start_slice: $('startSlice').value,
+      start_from: $('startFrom').value, steps: +$('steps').value, dispersal_cells: +$('dcells').value, p_colonize: +$('pcol').value});
+  if (kind === 'niche') Object.assign(c, {group_by: $('groupBy').value.split(','), min_n: +$('minN').value});
+  return c;
+}
+
+async function run(kind) {
+  const btn = document.querySelector(`#p-${kind} button`); btn.disabled = true;
+  $('log-' + kind).textContent = '시작…'; $('res-' + kind).innerHTML = '';
+  const {job} = await (await fetch('/api/run/' + kind, {method: 'POST', headers: {'Content-Type': 'application/json'},
+                                                        body: JSON.stringify(cfg(kind))})).json();
+  const t = setInterval(async () => {
+    const s = await (await fetch('/api/status/' + job)).json();
+    $('log-' + kind).textContent = s.log.join('\n') || '계산 중…';
+    if (s.status === 'error') { clearInterval(t); btn.disabled = false; $('log-' + kind).textContent += '\n[오류] ' + s.error; }
+    if (s.status === 'done') {
+      clearInterval(t); btn.disabled = false;
+      const r = s.result;
+      $('res-' + kind).innerHTML = (r.note ? `<div class="note">${esc(r.note)}</div>` : '') +
+        tableHTML(r.table, kind === 'compare') +
+        '<div class="imgs">' + (r.images || []).map(n => `<img src="/file/${job}/${encodeURIComponent(n)}?t=${Date.now()}">`).join('') + '</div>';
+      document.querySelectorAll(`#res-${kind} img`).forEach(i => i.onclick = () => { $('bigimg').src = i.src; $('big').showModal(); });
+    }
+  }, 1200);
+}
+
+let guideLoaded = false;
+async function loadGuide() {
+  if (guideLoaded) return;
+  const r = await fetch('/guide');
+  if (!r.ok) { $('p-guide').textContent = '안내 문서를 찾지 못했습니다.'; return; }
+  const {html} = await r.json();
+  $('p-guide').innerHTML = html;          // 서버가 로컬 문서를 변환해 보냄 (외부 스크립트 없음)
+  guideLoaded = true;
+}
+loadSummary();
+</script>
+</body>
+</html>
